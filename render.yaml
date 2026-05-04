@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: finance-bot
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: BOT_TOKEN
+        sync: false        # значение задаёте в Render Dashboard вручную
+      - key: WEBHOOK_URL
+        sync: false        # после первого деплоя возьмёте из URL сервиса
+      - key: PYTHON_VERSION
+        value: "3.12.7"
