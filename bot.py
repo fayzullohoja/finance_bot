@@ -886,8 +886,25 @@ def run_webhook():
     web.run_app(app, host="0.0.0.0", port=PORT)
 
 
+async def _run_polling_with_health():
+    """Polling + минимальный aiohttp на PORT (для Render-health, пока не задан WEBHOOK_URL)."""
+    app = web.Application()
+    app.router.add_get("/", _health)
+    app.router.add_get("/health", _health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host="0.0.0.0", port=PORT)
+    await site.start()
+    log.info("Health-сервер на :%s, polling запущен (WEBHOOK_URL не задан)", PORT)
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        await runner.cleanup()
+
+
 async def run_polling():
-    log.info("Запускаю polling (локальный режим — WEBHOOK_URL не задан)")
+    log.info("Запускаю polling (локальный режим)")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
@@ -895,5 +912,8 @@ async def run_polling():
 if __name__ == "__main__":
     if WEBHOOK_URL:
         run_webhook()
+    elif os.environ.get("PORT"):
+        # Render/Heroku-подобный хостинг без WEBHOOK_URL — даём health-эндпоинт + polling
+        asyncio.run(_run_polling_with_health())
     else:
         asyncio.run(run_polling())
