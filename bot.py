@@ -755,14 +755,17 @@ async def check_reminders():
 async def _on_startup(bot: Bot):
     asyncio.create_task(check_reminders())
     full = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
-    await bot.set_webhook(full, drop_pending_updates=True,
+    await bot.set_webhook(full, drop_pending_updates=False,
                           allowed_updates=dp.resolve_used_update_types())
     me = await bot.me()
     log.info("Webhook установлен: %s (бот @%s)", full, me.username)
 
 
 async def _on_shutdown(bot: Bot):
-    await bot.delete_webhook()
+    # Не удаляем webhook при остановке: при rolling-deploy на Render
+    # старый контейнер останавливается ПОСЛЕ того как новый уже поднял
+    # webhook на тот же URL — delete тогда сотрёт работающий webhook.
+    log.info("Shutdown: webhook оставлен как есть (избегаем race с новым деплоем)")
 
 
 async def _health(_request):
